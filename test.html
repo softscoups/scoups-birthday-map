@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🍒 SCOUPS BIRTHDAY CAFE MAP 🍒</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Malgun Gothic', sans-serif; }
+        body { background-color: #f8fafc; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        h1 { margin-bottom: 5px; color: #1e293b; font-size: 24px; text-align: center; }
+        .subtitle { font-size: 14px; color: #64748b; margin-bottom: 20px; text-align: center; }
+        .nav-buttons { margin-bottom: 20px; display: flex; gap: 10px; }
+        .nav-btn { padding: 10px 20px; border: none; background: #fff; border-radius: 20px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.05); font-weight: bold; transition: all 0.3s; color: #475569; }
+        .nav-btn.active { background: #ff6b6b; color: white; }
+        .map-wrapper { width: 100%; max-width: 500px; aspect-ratio: 1 / 1.5; background: #fff; border-radius: 32px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.08); border: 6px solid #fff; }
+        #googleMap { width: 100%; height: 100%; }
+        
+        /* 모달 팝업 스타일 */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); justify-content: center; align-items: center; z-index: 1000; padding: 20px; }
+        .modal-content { background: white; padding: 25px; border-radius: 24px; width: 100%; max-width: 400px; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto; }
+        .close-btn { position: absolute; top: 15px; right: 20px; font-size: 24px; cursor: pointer; border: none; background: none; z-index: 10; color: #94a3b8; }
+        .modal-title { font-size: 20px; margin-bottom: 12px; color: #1e293b; padding-right: 20px; font-weight: bold; }
+        .modal-info { margin-bottom: 15px; font-size: 14px; color: #475569; line-height: 1.6; }
+        
+        /* 이미지 슬라이더 */
+        .slider-container { position: relative; width: 100%; aspect-ratio: 1 / 1; background: #f1f5f9; border-radius: 16px; overflow: hidden; margin-bottom: 15px; }
+        .slider-track { display: flex; width: 100%; height: 100%; transition: transform 0.3s ease-in-out; }
+        .slider-item { min-width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+        .slider-item img { width: 100%; height: 100%; object-fit: cover; }
+        .slide-btn { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.3); color: white; border: none; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; }
+        .btn-prev { left: 10px; }
+        .btn-next { right: 10px; }
+        .slider-dots { display: flex; justify-content: center; gap: 6px; margin-top: -8px; margin-bottom: 15px; }
+        .dot { width: 8px; height: 8px; background: #e2e8f0; border-radius: 50%; }
+        .dot.active { background: #ff6b6b; }
+        
+        /* 링크 버튼 스타일 */
+        .map-links { display: flex; flex-direction: column; gap: 8px; margin-top: 15px; }
+        .map-links a { display: block; text-align: center; padding: 12px; border-radius: 12px; text-decoration: none; color: white; font-weight: bold; font-size: 14px; transition: opacity 0.2s; }
+        .map-links a:hover { opacity: 0.9; }
+        .link-twitter { background-color: #1da1f2; }
+        .link-naver { background-color: #03cf5d; }
+        .link-kakao { background-color: #fae100; color: #3c1e1e !important; }
+        .link-google { background-color: #EA4335; }
+    </style>
+</head>
+<body>
+
+    <h1>🍒 쿱스 생카 감성 지도 🍒</h1>
+    <p class="subtitle">구글 스프레드시트 정보가 실시간으로 지도에 반영됩니다.</p>
+
+    <!-- 지역 선택 버튼 -->
+    <div class="nav-buttons">
+        <button class="nav-btn active" onclick="switchRegion('홍대')">홍대 구역</button>
+        <button class="nav-btn" onclick="switchRegion('부산')">부산 구역</button>
+    </div>
+
+    <div class="map-wrapper">
+        <div id="googleMap"></div>
+    </div>
+
+    <!-- 상세 정보 팝업창 -->
+    <div class="modal" id="infoModal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal()">&times;</button>
+            <h3 class="modal-title" id="mTitle">카페 이름</h3>
+            
+            <div class="slider-container">
+                <div id="sliderTrack" class="slider-track"></div>
+                <button class="slide-btn btn-prev" onclick="moveSlide(-1)">&#10094;</button>
+                <button class="slide-btn btn-next" onclick="moveSlide(1)">&#10095;</button>
+            </div>
+            <div id="sliderDots" class="slider-dots"></div>
+            
+            <div class="modal-info" id="mInfo">상세 정보</div>
+            
+            <div class="map-links">
+                <a id="lnkTwitter" href="#" target="_blank" class="link-twitter">공지 확인하기 (X)</a>
+                <a id="lnkNaver" href="#" target="_blank" class="link-naver">네이버 지도 열기</a>
+                <a id="lnkKakao" href="#" target="_blank" class="link-kakao">카카오 맵 열기</a>
+                <a id="lnkGoogle" href="#" target="_blank" class="link-google">구글 맵 열기</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🔑 수정 필수 1: YOUR_API_KEY_HERE 부분을 본인의 구글 지도 API Key로 꼭 교체해 주세요! -->
+    <script src="https://maps.googleapis.com/maps/api/js?key= AIzaSyCuZhkDVFj0Aj4OGrNDa0D4ZoUmy9FilZY&language=ko&callback=initMap" async defer></script>
+
+    <script>
+        // 🔑 수정 필수 2: Sheety 사이트에서 얻은 초록색 GET API 주소를 여기에 붙여넣으세요!
+        const SHEETY_API_URL = "https://api.sheety.co/6c672dc8d4f26d618327cafe0188d1eb/승철생카/シート1";
+
+        let map;
+        let markers = [];
+        let cafeData = []; 
+        let currentRegion = "홍대"; 
+        let currentSlideIndex = 0;
+        let totalSlides = 0;
+
+        // 지도를 화사하고 깔끔하게 만들어주는 파스텔톤 스타일
+        // 지도를 화사하게 만들되, 대중교통(지하철역 등)은 선명하게 보여주는 스타일
+        const pastelMapStyle = [
+            { "elementType": "geometry", "stylers": [{ "color": "#f5f5f5" }] },
+            // 1. 기본 아이콘들은 전부 가립니다.
+            { "elementType": "labels.icon", "stylers": [{ "visibility": "off" }] },
+            { "featureType": "landscape.man_made", "elementType": "geometry.fill", "stylers": [{ "color": "#ebf3f7" }] },
+            { "featureType": "poi.park", "elementType": "geometry", "stylers": [{ "color": "#e5f5e5" }] },
+            { "featureType": "road", "elementType": "geometry", "stylers": [{ "color": "#ffffff" }] },
+            { "featureType": "water", "elementType": "geometry", "stylers": [{ "color": "#cce3f0" }] },
+            
+            // 2. [추가] 대중교통(지하철역, 기차역 등) 선 및 아이콘은 강제로 다시 켭니다!
+            { "featureType": "transit", "elementType": "all", "stylers": [{ "visibility": "on" }] },
+            { "featureType": "transit.station", "elementType": "labels.icon", "stylers": [{ "visibility": "on" }] }
+        ];
+
+        const regionCenters = {
+            "홍대": { lat: 37.5565, lng: 126.9238 },
+            "부산": { lat: 35.1587, lng: 129.0600 }
+        };
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById("googleMap"), {
+                center: regionCenters[currentRegion],
+                zoom: 17,
+                styles: pastelMapStyle,
+                disableDefaultUI: true,
+                zoomControl: true
+            });
+
+            fetchDataFromGoogleSheet();
+        }
+
+        function fetchDataFromGoogleSheet() {
+            fetch(SHEETY_API_URL)
+                .then(response => response.json())
+                .then(data => {
+                    const sheetKey = Object.keys(data)[0];
+                    cafeData = data[sheetKey];
+                    console.log("구글 시트 데이터 로드 성공:", cafeData);
+                    renderMarkers();
+                })
+                .catch(error => {
+                    console.error("구글 시트 연동 실패:", error);
+                });
+        }
+
+        function renderMarkers() {
+            markers.forEach(m => m.setMap(null));
+            markers = [];
+
+            const filtered = cafeData.filter(cafe => cafe.island === currentRegion);
+            const geocoder = new google.maps.Geocoder();
+
+            filtered.forEach(cafe => {
+                if (!cafe.address) return;
+
+                geocoder.geocode({ address: cafe.address }, (results, status) => {
+                    if (status === "OK" && results[0]) {
+                        const markerPosition = results[0].geometry.location;
+                        const marker = new google.maps.Marker({
+                            position: markerPosition,
+                            map: map,
+                            title: cafe.name,
+                            animation: google.maps.Animation.DROP,
+                            icon: {
+                                path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
+                                scale: 6,
+                                fillColor: "#ff6b6b",
+                                fillOpacity: 1,
+                                strokeColor: "#ffffff",
+                                strokeWeight: 2
+                            }
+                        });
+
+                        marker.addListener("click", () => {
+                            openModal(cafe);
+                        });
+                        markers.push(marker);
+                    }
+                });
+            });
+        }
+
+        function switchRegion(regionName) {
+            currentRegion = regionName;
+            const buttons = document.querySelectorAll('.nav-btn');
+            buttons.forEach(btn => {
+                if(btn.innerText.includes(regionName)) btn.classList.add('active');
+                else btn.classList.remove('active');
+            });
+            if (map && regionCenters[regionName]) {
+                map.setCenter(regionCenters[regionName]);
+                map.setZoom(15);
+                renderMarkers();
+            }
+        }
+
+        function openModal(cafe) {
+            document.getElementById('mTitle').innerText = cafe.name;
+            
+            // 줄바꿈 공백이 똑바로 반영되도록 엔터(\n)를 HTML 태그(<br>)로 치환합니다.
+            const formattedDesc = cafe.desc ? cafe.desc.replace(/\n/g, '<br>') : '';
+            document.getElementById('mInfo').innerHTML = `<strong>기간:</strong> ${cafe.date || ''}<br><strong>주소:</strong> ${cafe.address || ''}<br><br>${formattedDesc}`;
+            
+            // X(트위터) 링크 버튼 처리
+            const twitterBtn = document.getElementById('lnkTwitter');
+            if(cafe.twitter && cafe.twitter.trim() !== "") {
+                twitterBtn.style.display = 'block';
+                twitterBtn.href = cafe.twitter;
+            } else {
+                twitterBtn.style.display = 'none';
+            }
+
+            // 🗺️ 입력된 주소를 바탕으로 외부 지도 연결 링크 자동 생성!
+            const naverBtn = document.getElementById('lnkNaver');
+            const kakaoBtn = document.getElementById('lnkKakao');
+            const googleBtn = document.getElementById('lnkGoogle');
+
+            if (cafe.address && cafe.address.trim() !== "") {
+                const encodedAddress = encodeURIComponent(cafe.address);
+                const encodedName = encodeURIComponent(cafe.name);
+
+                naverBtn.style.display = 'block';
+                naverBtn.href = `https://map.naver.com/v5/search/${encodedAddress}`;
+
+                kakaoBtn.style.display = 'block';
+                kakaoBtn.href = `https://map.kakao.com/?q=${encodedAddress}`;
+
+                googleBtn.style.display = 'block';
+                googleBtn.href = `https://www.google.com/maps/search/?api=1&query=${encodedName}+${encodedAddress}`;
+            } else {
+                naverBtn.style.display = 'none';
+                kakaoBtn.style.display = 'none';
+                googleBtn.style.display = 'none';
+            }
+
+            // 🖼️ image1, image2 이미지 슬라이더 처리
+            const track = document.getElementById('sliderTrack');
+            const dotsContainer = document.getElementById('sliderDots');
+            track.innerHTML = '';
+            dotsContainer.innerHTML = '';
+            currentSlideIndex = 0;
+
+            const imgList = [];
+            if(cafe.image1 && cafe.image1.trim() !== "") imgList.push(cafe.image1.trim());
+            if(cafe.image2 && cafe.image2.trim() !== "") imgList.push(cafe.image2.trim());
+
+            if (imgList.length > 0) {
+                totalSlides = imgList.length;
+                imgList.forEach((imgUrl, index) => {
+                    const slideItem = document.createElement('div');
+                    slideItem.className = 'slider-item';
+                    slideItem.innerHTML = `<img src="${imgUrl}" alt="생카 이미지">`;
+                    track.appendChild(slideItem);
+
+                    const dot = document.createElement('div');
+                    dot.className = `dot ${index === 0 ? 'active' : ''}`;
+                    dotsContainer.appendChild(dot);
+                });
+                updateSlidePosition();
+            } else {
+                totalSlides = 0;
+                track.innerHTML = '<div class="slider-item"><p style="color:#aaa;">등록된 이미지가 없습니다.</p></div>';
+            }
+            document.getElementById('infoModal').style.display = 'flex';
+        }
+
+        function moveSlide(direction) {
+            if (totalSlides <= 1) return;
+            currentSlideIndex += direction;
+            if (currentSlideIndex >= totalSlides) currentSlideIndex = 0;
+            if (currentSlideIndex < 0) currentSlideIndex = totalSlides - 1;
+            updateSlidePosition();
+        }
+
+        function updateSlidePosition() {
+            const track = document.getElementById('sliderTrack');
+            track.style.transform = `translateX(-${currentSlideIndex * 100}%)`;
+            const dots = document.querySelectorAll('.dot');
+            dots.forEach((dot, idx) => {
+                if (idx === currentSlideIndex) dot.classList.add('active');
+                else dot.classList.remove('active');
+            });
+        }
+
+        function closeModal() {
+            document.getElementById('infoModal').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
